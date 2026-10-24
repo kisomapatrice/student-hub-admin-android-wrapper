@@ -1,0 +1,116 @@
+name: Install Student Hub Admin Android v1.2.0
+
+on:
+workflow_dispatch:
+
+permissions:
+contents: write
+
+jobs:
+install-and-build:
+runs-on: ubuntu-latest
+timeout-minutes: 30
+
+steps:
+  - name: Check out repository
+    uses: actions/checkout@v4
+
+  - name: Extract and verify replacement package
+    shell: bash
+    run: |
+      set -euo pipefail
+
+      PACKAGE="Student_Hub_Admin_Complete_Replacement_V1.2.0.zip"
+
+      if [ ! -f "$PACKAGE" ]; then
+        echo "::error::Upload the replacement ZIP to the repository root first."
+        ls -la
+        exit 1
+      fi
+
+      unzip -t "$PACKAGE"
+      mkdir -p /tmp/student-hub-v120
+      unzip -q "$PACKAGE" -d /tmp/student-hub-v120
+
+      SRC=/tmp/student-hub-v120
+
+      test -f "$SRC/settings.gradle"
+      test -f "$SRC/build.gradle"
+      test -f "$SRC/app/build.gradle"
+      test -f "$SRC/app/src/main/AndroidManifest.xml"
+
+      grep -q "versionName '1.2.0'" "$SRC/app/build.gradle"
+      grep -q 'buildStartupOverlay' "$SRC/app/src/main/java/ug/studenthub/adminapp/MainActivity.java"
+      grep -q 'V1.2.0' "$SRC/app/src/main/java/ug/studenthub/adminapp/MainActivity.java"
+
+      cp -a "$SRC/." .
+
+      echo "Replacement source V1.2.0 is ready."
+
+  - name: Set up Java 17
+    uses: actions/setup-java@v4
+    with:
+      distribution: temurin
+      java-version: '17'
+
+  - name: Set up Android SDK
+    uses: android-actions/setup-android@v4
+
+  - name: Install Android SDK packages
+    run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+  - name: Set up Gradle 8.9
+    uses: gradle/actions/setup-gradle@v4
+    with:
+      gradle-version: '8.9'
+
+  - name: Clean-build updated APK
+    run: gradle --no-daemon clean :app:assembleDebug
+
+  - name: Verify version and calculate APK checksum
+    shell: bash
+    run: |
+      set -euo pipefail
+      grep -q "versionName '1.2.0'" app/build.gradle
+      grep -q 'V1.2.0' app/src/main/java/ug/studenthub/adminapp/MainActivity.java
+      sha256sum app/build/outputs/apk/debug/app-debug.apk
+
+  - name: Upload versioned APK
+    uses: actions/upload-artifact@v4
+    with:
+      name: Student-Hub-Admin-v1.2.0-APK
+      path: app/build/outputs/apk/debug/app-debug.apk
+      if-no-files-found: error
+      retention-days: 14
+
+  - name: Remove obsolete packages and migration workflow
+    shell: bash
+    run: |
+      set -euo pipefail
+
+      rm -f \
+        Student_Hub_V1_Admin_Android_Wrapper_Starter_V1.0.zip \
+        Student_Hub_Admin_Android_Appearance_Update_V1.1.zip \
+        Student_Hub_Admin_Android_Engineered_Package_V1.1.1.zip \
+        Student_Hub_Admin_Complete_Replacement_V1.2.0.zip
+
+      rm -f .github/workflows/apply-appearance-update.yml
+
+      test -f .github/workflows/build-apk.yml
+
+  - name: Commit the replacement project and cleanup
+    shell: bash
+    run: |
+      set -euo pipefail
+
+      git config user.name "github-actions[bot]"
+      git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      git add -A
+
+      if ! git diff --cached --quiet; then
+        git commit -m "Replace Android wrapper with polished v1.2.0 project"
+        git push origin "HEAD:${GITHUB_REF_NAME}"
+      else
+        echo "No repository changes to commit."
+      fi
