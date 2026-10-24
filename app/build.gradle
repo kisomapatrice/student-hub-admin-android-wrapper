@@ -1,0 +1,26 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'ug.studenthub.adminapp'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'ug.studenthub.adminapp'
+        minSdk 23
+        targetSdk 34
+        versionCode 3
+        versionName '1.2.0'
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix '.debug'
+            versionNameSuffix '-debug'
+        }
+        release {
+            minifyEnabled false
+        }
+    }
+}
