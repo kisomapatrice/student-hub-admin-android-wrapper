@@ -9,40 +9,87 @@ permissions:
 jobs:
   update-and-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Apply appearance update package
+      - name: Extract appearance update
         shell: bash
         run: |
           set -euo pipefail
-          PACKAGE="Student_Hub_Admin_Android_Appearance_Update_V1.1.zip"
-          test -f "$PACKAGE" || { echo "Upload $PACKAGE to the repository root first."; exit 1; }
-          unzip -o "$PACKAGE" -d .
-          rm "$PACKAGE"
 
-      - name: Save updated Android source to main branch
+          PACKAGE="Student_Hub_Admin_Android_Appearance_Update_V1.1.zip"
+
+          if [ ! -f "$PACKAGE" ]; then
+            echo "::error::The appearance update ZIP is missing from the repository root."
+            exit 1
+          fi
+
+          mkdir -p /tmp/student-hub-update
+          unzip -q -o "$PACKAGE" -d /tmp/student-hub-update
+
+          PROJECT_SETTINGS="$(find /tmp/student-hub-update -type f -name settings.gradle -print -quit)"
+
+          if [ -z "$PROJECT_SETTINGS" ]; then
+            PROJECT_SETTINGS="$(find /tmp/student-hub-update -type f -name settings.gradle.kts -print -quit)"
+          fi
+
+          if [ -z "$PROJECT_SETTINGS" ]; then
+            echo "::error::No Gradle settings file was found inside the ZIP."
+            exit 1
+          fi
+
+          SOURCE_DIR="$(dirname "$PROJECT_SETTINGS")"
+
+          echo "Found Android project at: $SOURCE_DIR"
+
+          cp -a "$SOURCE_DIR/." .
+
+          if [ ! -f "settings.gradle" ] && [ ! -f "settings.gradle.kts" ]; then
+            echo "::error::Gradle project files were not copied to the repository root."
+            exit 1
+          fi
+
+          rm -f "$PACKAGE"
+
+      - name: Verify Android project structure
         shell: bash
         run: |
           set -euo pipefail
+
+          test -d app
+          test -f app/build.gradle || test -f app/build.gradle.kts
+
+          echo "Gradle settings:"
+          ls settings.gradle* 2>/dev/null || true
+
+          echo "Android app directory:"
+          ls app
+
+      - name: Commit updated source
+        shell: bash
+        run: |
+          set -euo pipefail
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
           git add -A
-          if git diff --cached --quiet; then
-            echo "No source changes detected."
-          else
-            git commit -m "Improve Student Hub Admin app branding and startup screen"
+
+          if ! git diff --cached --quiet; then
+            git commit -m "Update Student Hub Admin app appearance"
             git push origin "HEAD:${GITHUB_REF_NAME}"
+          else
+            echo "No source changes to commit."
           fi
 
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
@@ -53,12 +100,12 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.9'
+          gradle-version: "8.9"
 
-      - name: Build updated debug APK
+      - name: Build updated APK
         run: gradle --no-daemon :app:assembleDebug
 
-      - name: Upload APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Student-Hub-Admin-APK
