@@ -1,13 +1,13 @@
-name: Restore and Build Student Hub Admin Android App
+name: Apply Student Hub Android Appearance Update
 
 on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  restore-and-build:
+  update-and-build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -15,40 +15,43 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Inspect and restore Android project
+      - name: Validate packages
         shell: bash
         run: |
           set -euo pipefail
 
-          echo "Inspecting available packages..."
+          PACKAGE="Student_Hub_Admin_Android_Engineered_Package_V1.1.1.zip"
 
-          find . -maxdepth 2 -type f -name '*.zip' -print
-
-          mkdir -p /tmp/student-hub-starter
-          unzip -q -o Student_Hub_V1_Admin_Android_Wrapper_Starter_V1.0.zip \
-            -d /tmp/student-hub-starter
-
-          SETTINGS="$(find /tmp/student-hub-starter -type f \
-            \( -name settings.gradle -o -name settings.gradle.kts \) \
-            -print -quit)"
-
-          if [ -z "$SETTINGS" ]; then
-            echo "::error::The starter ZIP does not contain a Gradle settings file."
-            find /tmp/student-hub-starter -maxdepth 4 -type f -print
+          if [ ! -f "$PACKAGE" ]; then
+            echo "::error::Engineered appearance package is missing from repository root."
+            ls -la
             exit 1
           fi
 
-          PROJECT_DIR="$(dirname "$SETTINGS")"
+          unzip -t "$PACKAGE"
 
-          echo "Starter project found at: $PROJECT_DIR"
-          find "$PROJECT_DIR" -maxdepth 3 -type f -print
+      - name: Extract updated Android project
+        shell: bash
+        run: |
+          set -euo pipefail
 
-          if [ ! -d "$PROJECT_DIR/app" ]; then
-            echo "::error::The restored project has no app directory."
-            exit 1
-          fi
+          mkdir -p /tmp/student-hub-appearance
+          unzip -q -o \
+            Student_Hub_Admin_Android_Engineered_Package_V1.1.1.zip \
+            -d /tmp/student-hub-appearance
 
-          echo "ANDROID_PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          SOURCE="/tmp/student-hub-appearance"
+
+          test -f "$SOURCE/settings.gradle"
+          test -f "$SOURCE/build.gradle"
+          test -f "$SOURCE/app/build.gradle"
+          test -f "$SOURCE/app/src/main/AndroidManifest.xml"
+
+          cp -a "$SOURCE/." .
+
+          echo "Updated Android source files have been integrated."
+          test -f settings.gradle
+          test -f app/src/main/java/ug/studenthub/adminapp/MainActivity.java
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -67,17 +70,13 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Build starter APK
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd "$ANDROID_PROJECT_DIR"
-          gradle --no-daemon :app:assembleDebug
+      - name: Build updated APK
+        run: gradle --no-daemon :app:assembleDebug
 
-      - name: Upload APK
+      - name: Upload updated APK
         uses: actions/upload-artifact@v4
         with:
           name: Student-Hub-Admin-APK
-          path: ${{ env.ANDROID_PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
