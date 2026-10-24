@@ -1,0 +1,170 @@
+name: Build Student Hub Admin Android v1.2.0
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install the complete Android source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/student-hub-admin-v120
+          cat > /tmp/project.b64 <<'PROJECT_ARCHIVE_BASE64'
+          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
+          PROJECT_ARCHIVE_BASE64
+          base64 -d /tmp/project.b64 | tar -xz -C /tmp/student-hub-admin-v120
+          cp -a /tmp/student-hub-admin-v120/. .
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .gitignore README.md settings.gradle build.gradle gradle.properties app
+          if ! git diff --cached --quiet; then
+            git commit -m "Create Student Hub Admin Android V1.2.0 project"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          else
+            echo "Android source is already up to date."
+          fi
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android SDK packages
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Clean-build the APK
+        run: gradle --no-daemon clean :app:assembleDebug
+
+      - name: Verify APK and calculate checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          sha256sum "$APK"
+          echo "APK file exists and is non-empty."
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Student-Hub-Admin-v1.2.0-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
