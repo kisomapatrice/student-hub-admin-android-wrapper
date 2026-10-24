@@ -1,13 +1,13 @@
-name: Apply Student Hub Android Appearance Update
+name: Build Student Hub Admin Android App
 
 on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  update-and-build:
+  build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -15,75 +15,23 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Extract appearance update
+      - name: Locate Android project
         shell: bash
         run: |
           set -euo pipefail
 
-          PACKAGE="Student_Hub_Admin_Android_Appearance_Update_V1.1.zip"
+          SETTINGS="$(find . -type f \( -name settings.gradle -o -name settings.gradle.kts \) -not -path './.git/*' -print -quit)"
 
-          if [ ! -f "$PACKAGE" ]; then
-            echo "::error::The appearance update ZIP is missing from the repository root."
+          if [ -z "$SETTINGS" ]; then
+            echo "::error::No Gradle settings file found. Check that the Android project source is committed to GitHub."
+            echo "Repository root contents:"
+            ls -la
             exit 1
           fi
 
-          mkdir -p /tmp/student-hub-update
-          unzip -q -o "$PACKAGE" -d /tmp/student-hub-update
-
-          PROJECT_SETTINGS="$(find /tmp/student-hub-update -type f -name settings.gradle -print -quit)"
-
-          if [ -z "$PROJECT_SETTINGS" ]; then
-            PROJECT_SETTINGS="$(find /tmp/student-hub-update -type f -name settings.gradle.kts -print -quit)"
-          fi
-
-          if [ -z "$PROJECT_SETTINGS" ]; then
-            echo "::error::No Gradle settings file was found inside the ZIP."
-            exit 1
-          fi
-
-          SOURCE_DIR="$(dirname "$PROJECT_SETTINGS")"
-
-          echo "Found Android project at: $SOURCE_DIR"
-
-          cp -a "$SOURCE_DIR/." .
-
-          if [ ! -f "settings.gradle" ] && [ ! -f "settings.gradle.kts" ]; then
-            echo "::error::Gradle project files were not copied to the repository root."
-            exit 1
-          fi
-
-          rm -f "$PACKAGE"
-
-      - name: Verify Android project structure
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          test -d app
-          test -f app/build.gradle || test -f app/build.gradle.kts
-
-          echo "Gradle settings:"
-          ls settings.gradle* 2>/dev/null || true
-
-          echo "Android app directory:"
-          ls app
-
-      - name: Commit updated source
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          git add -A
-
-          if ! git diff --cached --quiet; then
-            git commit -m "Update Student Hub Admin app appearance"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
-          else
-            echo "No source changes to commit."
-          fi
+          PROJECT_DIR="$(dirname "$SETTINGS")"
+          echo "ANDROID_PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          echo "Found Android project in: $PROJECT_DIR"
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -102,13 +50,17 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Build updated APK
-        run: gradle --no-daemon :app:assembleDebug
+      - name: Build APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$ANDROID_PROJECT_DIR"
+          gradle --no-daemon :app:assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Student-Hub-Admin-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: ${{ env.ANDROID_PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
