@@ -40,10 +40,8 @@ steps:
       test -f "$SRC/app/src/main/AndroidManifest.xml"
 
       grep -q "versionName '1.2.0'" "$SRC/app/build.gradle"
-      grep -q 'buildStartupOverlay' \
-        "$SRC/app/src/main/java/ug/studenthub/adminapp/MainActivity.java"
-      grep -q 'V1.2.0' \
-        "$SRC/app/src/main/java/ug/studenthub/adminapp/MainActivity.java"
+      grep -q 'buildStartupOverlay' "$SRC/app/src/main/java/ug/studenthub/adminapp/MainActivity.java"
+      grep -q 'V1.2.0' "$SRC/app/src/main/java/ug/studenthub/adminapp/MainActivity.java"
 
       cp -a "$SRC/." .
 
@@ -74,8 +72,7 @@ steps:
     run: |
       set -euo pipefail
       grep -q "versionName '1.2.0'" app/build.gradle
-      grep -q 'V1.2.0' \
-        app/src/main/java/ug/studenthub/adminapp/MainActivity.java
+      grep -q 'V1.2.0' app/src/main/java/ug/studenthub/adminapp/MainActivity.java
       sha256sum app/build/outputs/apk/debug/app-debug.apk
 
   - name: Upload versioned APK
@@ -107,8 +104,7 @@ steps:
       set -euo pipefail
 
       git config user.name "github-actions[bot]"
-      git config user.email \
-        "41898282+github-actions[bot]@users.noreply.github.com"
+      git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       git add -A
 
