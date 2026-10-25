@@ -3,23 +3,18 @@
   run: |
   set -euo pipefail
   APK="app/build/outputs/apk/debug/app-debug.apk"
-  
-      test -f "$APK"
-    test -s "$APK"
-
-    echo "APK size:"
-    ls -lh "$APK"
-
-    echo "Checking APK archive..."
-    file "$APK"
-    unzip -t "$APK"
-
-    APK_BYTES=$(stat -c%s "$APK")
-    if [ "$APK_BYTES" -lt 1000000 ]; then
-      echo "::error::APK is unexpectedly small: ${APK_BYTES} bytes"
-      exit 1
-    fi
-
-    echo "APK SHA-256:"
-    sha256sum "$APK"
-    echo "APK validation passed."
+  test -f "$APK"
+  test -s "$APK"
+  echo "APK size:"
+  ls -lh "$APK"
+  echo "Checking APK archive..."
+  file "$APK"
+  unzip -t "$APK"
+  APK_BYTES=$(stat -c%s "$APK")
+  if [ "$APK_BYTES" -lt 1000000 ]; then
+  echo "::error::APK is unexpectedly small: ${APK_BYTES} bytes"
+  exit 1
+  fi
+  echo "APK SHA-256:"
+  sha256sum "$APK"
+  echo "APK validation passed."
